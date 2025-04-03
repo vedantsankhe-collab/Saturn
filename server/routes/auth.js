@@ -65,15 +65,23 @@ router.post(
     check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
   ],
   async (req, res) => {
+    console.log('Registration route hit with data:', {
+      name: req.body.name ? 'Provided' : 'Missing',
+      email: req.body.email ? 'Provided' : 'Missing',
+      password: req.body.password ? 'Provided (hidden)' : 'Missing'
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Registration validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { name, email, password } = req.body;
-    console.log('Registration attempt for:', email);
+    console.log('Registration attempt for email:', email);
 
     try {
+      console.log('Checking if user exists...');
       // Check if user exists
       let user = await getUserByEmail(email);
 
@@ -82,6 +90,7 @@ router.post(
         return res.status(400).json({ msg: 'User already exists' });
       }
 
+      console.log('Creating new user...');
       // Create new user
       user = await createUser({
         name,
@@ -98,6 +107,7 @@ router.post(
         }
       };
 
+      console.log('Generating JWT token...');
       // Sign token
       jwt.sign(
         payload,
@@ -108,11 +118,17 @@ router.post(
             console.error('JWT Sign Error:', err);
             return res.status(500).json({ msg: 'Error generating token', error: err.message });
           }
+          console.log('Token generated successfully');
           res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
         }
       );
     } catch (err) {
-      console.error('Registration Error:', err.message);
+      console.error('Registration Error:', err);
+      console.error('Error details:', err.message);
+      if (err.code === 11000) {
+        // Duplicate key error (likely email)
+        return res.status(400).json({ msg: 'Email already in use' });
+      }
       res.status(500).json({ msg: 'Server Error', error: err.message });
     }
   }

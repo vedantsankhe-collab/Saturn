@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 // Load environment variables
 dotenv.config();
@@ -64,6 +65,114 @@ app.post('/api/debug/login', async (req, res) => {
   } catch (error) {
     console.error('Debug login error:', error);
     return res.status(500).json({ msg: 'Server Error', error: error.message });
+  }
+});
+
+// Debug endpoint for testing MongoDB connection
+app.get('/api/debug/db', async (req, res) => {
+  console.log('Debug DB endpoint called');
+  
+  try {
+    // Check MongoDB connection
+    const status = mongoose.connection.readyState;
+    const dbStatus = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+    
+    if (status === 1) {
+      // Try to run a test query
+      const testResult = await mongoose.connection.db.admin().ping();
+      
+      return res.json({
+        status: 'ok',
+        connection: dbStatus[status],
+        ping: testResult,
+        mongoUri: process.env.MONGO_URI ? 'Set (hidden)' : 'Not set',
+        useMockDb: global.useMockDb
+      });
+    } else {
+      return res.json({
+        status: 'error',
+        connection: dbStatus[status],
+        message: 'MongoDB not connected',
+        mongoUri: process.env.MONGO_URI ? 'Set (hidden)' : 'Not set',
+        useMockDb: global.useMockDb
+      });
+    }
+  } catch (error) {
+    console.error('Debug DB error:', error);
+    return res.status(500).json({ 
+      msg: 'MongoDB Error', 
+      error: error.message,
+      mongoUri: process.env.MONGO_URI ? 'Set (hidden)' : 'Not set',
+      useMockDb: global.useMockDb
+    });
+  }
+});
+
+// Test endpoint for direct user creation
+app.post('/api/debug/create-user', async (req, res) => {
+  console.log('Debug create user endpoint called');
+  const { name, email, password } = req.body;
+  
+  try {
+    // Connect to MongoDB if not connected
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
+    
+    if (global.useMockDb) {
+      const mockUser = {
+        _id: Date.now().toString(),
+        name: name || 'Test User',
+        email: email || 'test@example.com'
+      };
+      
+      return res.json({ 
+        status: 'success', 
+        mode: 'mock', 
+        user: mockUser 
+      });
+    }
+    
+    // Create user directly using Mongoose
+    const User = require('../server/models/User');
+    
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password || 'password123', salt);
+    
+    // Create user document
+    const user = new User({
+      name: name || 'Test User',
+      email: email || 'test@example.com',
+      password: hashedPassword
+    });
+    
+    // Save to database
+    const savedUser = await user.save();
+    
+    return res.json({ 
+      status: 'success', 
+      mode: 'mongodb', 
+      user: {
+        id: savedUser._id,
+        name: savedUser.name,
+        email: savedUser.email
+      }
+    });
+  } catch (error) {
+    console.error('Debug create user error:', error);
+    return res.status(500).json({ 
+      status: 'error',
+      msg: 'User creation error', 
+      error: error.message,
+      code: error.code,
+      mongoState: mongoose.connection.readyState
+    });
   }
 });
 

@@ -134,17 +134,24 @@ if (process.env.NODE_ENV === 'production') {
 const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
-      throw new Error('MONGO_URI is not defined in environment variables');
+      console.error('MONGO_URI environment variable is missing!');
+      throw new Error('MONGO_URI environment variable is not defined');
     }
 
+    console.log('MongoDB URI format check:', {
+      includes_mongodb: process.env.MONGO_URI.includes('mongodb'),
+      includes_cluster: process.env.MONGO_URI.includes('cluster'),
+      length: process.env.MONGO_URI.length
+    });
+    
     console.log('Attempting to connect to MongoDB...');
     
     const mongoOptions = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      connectTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
       retryWrites: true,
       w: 'majority'
     };
@@ -158,6 +165,15 @@ const connectDB = async () => {
     await seedCategories();
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
+    console.error('Full error:', error);
+    
+    if (error.name === 'MongoParseError') {
+      console.error('Error parsing MongoDB connection string. Please check the format.');
+    } else if (error.name === 'MongoNetworkError') {
+      console.error('Network error connecting to MongoDB. Please check your internet connection and MongoDB Atlas status.');
+    } else if (error.message.includes('bad auth')) {
+      console.error('Authentication failed. Please check your username and password.');
+    }
     
     if (error.message.includes('ENOTFOUND') || 
         error.message.includes('ECONNREFUSED') || 
