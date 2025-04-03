@@ -24,7 +24,7 @@ import {
 import {
   Notifications as NotificationsIcon,
   CelebrationOutlined,
-  EventOutline,
+  Event as EventIcon,
   Clear,
   Payment,
   AccountBalanceWallet,

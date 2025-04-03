@@ -1,114 +1,101 @@
-# Personal Finance Tracker
+# SATURN - Personal Finance Tracker
 
-A comprehensive personal finance tracking application with advanced features for managing expenses, income, investments, and more.
+SATURN is a comprehensive personal finance tracking application that helps users manage their expenses, income, and savings goals.
 
 ## Features
 
-- **User Authentication**: Secure login and registration system
-- **Expense Tracking**: Add, edit, and categorize expenses
-- **Income Management**: Track various income sources
-- **Customizable Categories**: Create and manage expense and income categories
-- **Dashboard**: Visual representation of financial data with charts and graphs
-- **Investment Tracking**: Monitor investments and get AI-powered investment strategies
-- **Notification Processing**: Automatically process device notifications to add expenses and income
-- **Customizable Theme**: Green and black theme with options to customize
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- Dashboard with financial overview and visualizations
+- Expense tracking with categorization
+- Income management
+- Notification system for subscription reminders and milestones
+- Theme customization
+- User authentication and profile management
+- Responsive UI built with Material-UI
 
 ## Tech Stack
 
-### Backend
-- Node.js
-- Express.js
-- MongoDB
-- JWT Authentication
-- OpenAI API for investment strategies
+- **Frontend**: React, Redux, Material-UI
+- **Backend**: Node.js, Express
+- **Database**: MongoDB
+- **Authentication**: JWT
 
-### Frontend
-- React.js
-- Redux for state management
-- Chart.js for data visualization
-- Material-UI with custom theming
-- Responsive design
+## Getting Started
 
-## Prerequisites
+### Prerequisites
 
-Before you begin, ensure you have the following installed:
-- Node.js (v14 or higher)
-- npm or yarn
-- MongoDB (local or Atlas)
+- Node.js (v18 or higher)
+- MongoDB Atlas account
 
-## Installation
+### Installation
 
-1. Clone the repository:
-```
-git clone https://github.com/yourusername/personal-finance-tracker.git
-cd personal-finance-tracker
-```
+1. Clone the repository
+   ```bash
+   git clone https://github.com/your-username/saturn.git
+   cd saturn
+   ```
 
-2. Install server dependencies:
-```
-cd server
-npm install
-```
+2. Install dependencies
+   ```bash
+   npm run install-all
+   ```
 
-3. Install client dependencies:
-```
-cd ../client
-npm install
-```
+3. Create a `.env` file in the root directory with the following variables:
+   ```
+   MONGO_URI=your_mongodb_connection_string
+   JWT_SECRET=your_jwt_secret
+   PORT=5001
+   ```
 
-4. Create a `.env` file in the server directory with the following variables:
-```
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret_key
-OPENAI_API_KEY=your_openai_api_key
-NODE_ENV=development
-```
+4. Start the application in development mode
+   ```bash
+   npm run dev
+   ```
 
-## Running the Application
+## Project Structure
 
-1. Start the server:
 ```
-cd server
-npm run dev
-```
-
-2. Start the client:
-```
-cd client
-npm start
+saturn/
+├── client/           # React frontend
+│   ├── public/
+│   └── src/
+│       ├── components/
+│       ├── context/
+│       ├── pages/
+│       ├── redux/
+│       └── utils/
+├── server/           # Express backend
+│   ├── config/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── models/
+│   └── routes/
+└── api/              # Vercel serverless functions
 ```
 
-3. Open your browser and navigate to `http://localhost:3000`
+## Deployment
 
-## Default Categories
+### Deploy to Vercel
 
-The application comes with default expense categories:
-- Food & Dining
-- Shopping
-- Travel
-- Fuel
-- Health
-- Subscriptions
-- Entertainment
-- Utilities
-- Housing
-- Education
+1. Install Vercel CLI:
+   ```bash
+   npm install -g vercel
+   ```
 
-And default income categories:
-- Salary
-- Business
-- Investment
-- Gift
-- Other
+2. Login to Vercel:
+   ```bash
+   vercel login
+   ```
+
+3. Deploy:
+   ```bash
+   vercel
+   ```
+
+4. For production deployment:
+   ```bash
+   vercel --prod
+   ```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- OpenAI for AI-powered investment strategies
-- Material-UI for the component library
-- Chart.js for data visualization 
+MIT 

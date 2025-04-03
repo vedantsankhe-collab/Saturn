@@ -1,22 +1,25 @@
 import axios from 'axios';
 
+// Create an instance of axios
 const api = axios.create({
-  baseURL: 'http://localhost:5001',
+  baseURL: process.env.NODE_ENV === 'production'
+    ? '/api'  // In production, requests go to /api which will be handled by Vercel rewrites
+    : 'http://localhost:5001', // In development, use the local server
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
-// Add a request interceptor to add the auth token to every request
+// Add a request interceptor to add the token to every request
 api.interceptors.request.use(
-  (config) => {
+  config => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['x-auth-token'] = token;
     }
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
   }
 );
@@ -34,81 +37,66 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API
-export const login = async (credentials) => {
-  try {
-    const response = await api.post('/api/auth/login', credentials);
-    
-    // Store token in localStorage
-    if (response.data && response.data.token) {
-      localStorage.setItem('token', response.data.token);
-    }
-    
-    return response.data;
-  } catch (error) {
-    console.error('Login API error:', error.response?.data || error.message);
-    throw error;
-  }
-};
-
+// API function to register a user
 export const register = async (userData) => {
   try {
-    const response = await api.post('/api/auth/register', userData);
-    
-    // Store token in localStorage
-    if (response.data && response.data.token) {
-      localStorage.setItem('token', response.data.token);
-    }
-    
-    return response.data;
-  } catch (error) {
-    console.error('Register API error:', error.response?.data || error.message);
-    throw error;
+    const res = await api.post('/api/users/register', userData);
+    return res.data;
+  } catch (err) {
+    console.error('Register error:', err.response?.data || err.message);
+    throw err;
   }
 };
 
-export const logout = async () => {
+// API function to login a user
+export const login = async (userData) => {
   try {
-    localStorage.removeItem('token');
-    const response = await api.post('/api/auth/logout');
-    return response.data;
-  } catch (error) {
-    console.error('Logout API error:', error.response?.data || error.message);
-    throw error;
+    const res = await api.post('/api/users/login', userData);
+    return res.data;
+  } catch (err) {
+    console.error('Login error:', err.response?.data || err.message);
+    throw err;
   }
 };
 
-// User Settings API
+// API function to logout (just for completeness, the actual logout happens on the client)
+export const logout = () => {
+  localStorage.removeItem('token');
+};
+
+// API function to update user profile
 export const updateUser = async (userData) => {
   try {
-    const response = await api.put('/api/users/profile', userData);
-    return response.data;
-  } catch (error) {
-    console.error('Update user API error:', error.response?.data || error.message);
-    throw error;
+    const res = await api.put('/api/users/profile', userData);
+    return res.data;
+  } catch (err) {
+    console.error('Update user error:', err.response?.data || err.message);
+    throw err;
   }
 };
 
+// API function to change password
 export const changePassword = async (passwordData) => {
   try {
-    const response = await api.put('/api/users/password', passwordData);
-    return response.data;
-  } catch (error) {
-    console.error('Change password API error:', error.response?.data || error.message);
-    throw error;
+    const res = await api.put('/api/users/password', passwordData);
+    return res.data;
+  } catch (err) {
+    console.error('Change password error:', err.response?.data || err.message);
+    throw err;
   }
 };
 
+// API function to delete account
 export const deleteAccount = async () => {
   try {
-    const response = await api.delete('/api/users/account');
-    return response.data;
-  } catch (error) {
-    console.error('Delete account API error:', error.response?.data || error.message);
-    throw error;
+    const res = await api.delete('/api/users/account');
+    return res.data;
+  } catch (err) {
+    console.error('Delete account error:', err.response?.data || err.message);
+    throw err;
   }
 };
 
-// Make sure we export both as named and default for compatibility
+// Export both named and default
 export { api };
 export default api; 
