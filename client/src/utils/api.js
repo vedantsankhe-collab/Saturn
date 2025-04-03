@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create an instance of axios
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production'
-    ? '/api'  // In production, requests go to /api which will be handled by Vercel rewrites
+    ? ''  // In production, use relative paths
     : 'http://localhost:5001', // In development, use the local server
   headers: {
     'Content-Type': 'application/json'
@@ -41,6 +41,9 @@ api.interceptors.response.use(
 export const register = async (userData) => {
   try {
     const res = await api.post('/api/users/register', userData);
+    if (res.data.token) {
+      localStorage.setItem('token', res.data.token);
+    }
     return res.data;
   } catch (err) {
     console.error('Register error:', err.response?.data || err.message);
@@ -52,6 +55,9 @@ export const register = async (userData) => {
 export const login = async (userData) => {
   try {
     const res = await api.post('/api/users/login', userData);
+    if (res.data.token) {
+      localStorage.setItem('token', res.data.token);
+    }
     return res.data;
   } catch (err) {
     console.error('Login error:', err.response?.data || err.message);
@@ -59,9 +65,10 @@ export const login = async (userData) => {
   }
 };
 
-// API function to logout (just for completeness, the actual logout happens on the client)
+// API function to logout
 export const logout = () => {
   localStorage.removeItem('token');
+  window.location.href = '/login';
 };
 
 // API function to update user profile
@@ -90,6 +97,8 @@ export const changePassword = async (passwordData) => {
 export const deleteAccount = async () => {
   try {
     const res = await api.delete('/api/users/account');
+    localStorage.removeItem('token');
+    window.location.href = '/login';
     return res.data;
   } catch (err) {
     console.error('Delete account error:', err.response?.data || err.message);

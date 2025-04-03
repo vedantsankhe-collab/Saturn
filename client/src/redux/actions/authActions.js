@@ -45,6 +45,7 @@ export const register = (formData) => async (dispatch) => {
     });
     
     dispatch(loadUser());
+    window.location.href = '/dashboard';
     return res.data;
   } catch (err) {
     console.error('Register action error:', err);
@@ -78,6 +79,7 @@ export const login = (email, password) => async (dispatch) => {
     });
     
     dispatch(loadUser());
+    window.location.href = '/dashboard';
     return res.data;
   } catch (err) {
     console.error('Login action error:', err);
@@ -98,6 +100,8 @@ export const login = (email, password) => async (dispatch) => {
 // Logout
 export const logout = () => (dispatch) => {
   dispatch({ type: LOGOUT });
+  localStorage.removeItem('token');
+  window.location.href = '/login';
 };
 
 // Update User Profile
