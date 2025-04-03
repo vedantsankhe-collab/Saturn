@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Personal Finance Tracker",
   "main": "server/server.js",
+  "engines": {
+    "node": ">=16.x",
+    "npm": ">=8.x"
+  },
   "scripts": {
     "start": "node server/server.js",
     "server": "nodemon server/server.js",
@@ -10,6 +14,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "install-all": "npm install && cd client && npm install && cd ../server && npm install",
     "build": "cd client && npm run build",
+    "postinstall": "cd client && npm install && cd ../server && npm install",
     "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix client && npm run build --prefix client"
   },
   "keywords": [

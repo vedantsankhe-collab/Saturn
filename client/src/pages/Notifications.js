@@ -24,16 +24,11 @@ import {
 import {
   Notifications as NotificationsIcon,
   CelebrationOutlined,
-  Event as EventIcon,
   Clear,
-  Payment,
-  AccountBalanceWallet,
   CheckCircle,
-  ErrorOutline,
   InfoOutlined,
   TimerOutlined
 } from '@mui/icons-material';
-import { api } from '../utils/api';
 import { format, isToday, isPast, addDays } from 'date-fns';
 
 const TabPanel = (props) => {

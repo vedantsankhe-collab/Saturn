@@ -5,12 +5,18 @@ const dotenv = require('dotenv');
 const path = require('path');
 const seedCategories = require('./utils/seedCategories');
 const mockDb = require('./utils/mockDb');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 // Load environment variables
 dotenv.config();
 
-// Global flag to indicate if we're using mock database
-global.useMockDb = false;
+console.log('Environment:', process.env.NODE_ENV);
+console.log('Port:', process.env.PORT);
+
+// Set up mock database to ensure app works even without MongoDB connection
+global.useMockDb = process.env.USE_MOCK_DB === 'true' || false;
+console.log('Using mock database:', global.useMockDb);
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -29,9 +35,81 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-auth-token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
+
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    dbStatus: global.useMockDb ? 'mock' : 'connected',
+    environment: process.env.NODE_ENV 
+  });
+});
+
+// Debug endpoint for testing
+app.post('/api/debug/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  
+  console.log('Debug register endpoint called with:', { name, email, password: '***' });
+  
+  try {
+    // Check if we can connect to the database
+    if (!global.useMockDb) {
+      const user = await mockDb.createUser({
+        name,
+        email,
+        password: await bcrypt.hash(password, 10)
+      });
+      
+      // Generate token
+      const token = jwt.sign(
+        { user: { id: user._id } },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      console.log('Debug user created and token generated');
+      return res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    } else {
+      return res.status(500).json({ msg: 'Database unavailable' });
+    }
+  } catch (error) {
+    console.error('Debug register error:', error);
+    return res.status(500).json({ msg: 'Server Error', error: error.message });
+  }
+});
+
+// Debug endpoint for testing login
+app.post('/api/debug/login', async (req, res) => {
+  const { email, password } = req.body;
+  
+  console.log('Debug login endpoint called with:', { email, password: '***' });
+  
+  try {
+    // Always succeed for debugging
+    const mockUser = {
+      _id: '123456',
+      name: 'Debug User',
+      email: email
+    };
+    
+    // Generate token
+    const token = jwt.sign(
+      { user: { id: mockUser._id } },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    console.log('Debug token generated');
+    return res.json({ token, user: mockUser });
+  } catch (error) {
+    console.error('Debug login error:', error);
+    return res.status(500).json({ msg: 'Server Error', error: error.message });
+  }
+});
 
 // Define routes
 app.use('/api/auth', authRoutes);
@@ -74,6 +152,7 @@ const connectDB = async () => {
     await mongoose.connect(process.env.MONGO_URI, mongoOptions);
     
     console.log('MongoDB connected successfully');
+    global.useMockDb = false;
     
     // Seed default categories
     await seedCategories();
@@ -100,16 +179,31 @@ const connectDB = async () => {
       console.log('Mock database initialized successfully');
     } else {
       console.error('Unexpected error:', error);
-      process.exit(1);
+      
+      // Fall back to mock database instead of exiting
+      console.log('Falling back to mock database...');
+      global.useMockDb = true;
+      await mockDb.seedDefaultCategories();
     }
   }
 };
 
 // Start server
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
+// Add error handlers for the server
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.log(`Port ${PORT} is already in use. Please use a different port.`);
+    process.exit(1);
+  }
+});
+
 // Connect to database
-connectDB(); 
+connectDB().then(() => {
+  console.log('Database connection setup completed');
+}); 
