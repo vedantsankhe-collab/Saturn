@@ -7,25 +7,75 @@ const path = require('path');
 // Load environment variables
 dotenv.config();
 
+console.log('API Server starting in environment:', process.env.NODE_ENV);
+console.log('MongoDB URI available:', !!process.env.MONGO_URI);
+
 // Import routes
 const authRoutes = require('../server/routes/auth');
 const usersRoutes = require('../server/routes/users');
 const expensesRoutes = require('../server/routes/expenses');
 const incomeRoutes = require('../server/routes/income');
 const categoriesRoutes = require('../server/routes/categories');
+const notificationRoutes = require('../server/routes/notifications');
+const investmentRoutes = require('../server/routes/investments');
 
 // Initialize Express app
 const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+}));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    env: process.env.NODE_ENV
+  });
+});
+
+// Debug endpoint for testing authentication
+app.post('/api/debug/login', async (req, res) => {
+  const { email, password } = req.body;
+  console.log('Debug login endpoint called');
+  
+  try {
+    // Create mock user for testing
+    const mockUser = {
+      _id: '123456789',
+      name: 'Test User',
+      email: email || 'test@example.com'
+    };
+    
+    // Generate JWT token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { user: { id: mockUser._id } },
+      process.env.JWT_SECRET || 'debug_secret_key',
+      { expiresIn: '7d' }
+    );
+    
+    return res.json({ token, user: mockUser });
+  } catch (error) {
+    console.error('Debug login error:', error);
+    return res.status(500).json({ msg: 'Server Error', error: error.message });
+  }
+});
 
 // Connect to MongoDB
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGO_URI;
-    console.log('Attempting to connect to MongoDB with URI:', mongoURI?.replace(/:[^:]*@/, ':****@'));
+    if (!mongoURI) {
+      throw new Error('MONGO_URI environment variable is not defined');
+    }
+    
+    console.log('Attempting to connect to MongoDB...');
     
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
@@ -63,7 +113,6 @@ const connectDB = async () => {
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
     // Don't exit process on error in serverless environment
-    // process.exit(1);
   }
 };
 
@@ -73,20 +122,24 @@ app.use('/api/users', usersRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/income', incomeRoutes);
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/investments', investmentRoutes);
 
 // Not found handler
-app.use((req, res) => {
-  res.status(404).json({ msg: 'Route not found' });
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ msg: 'API route not found', path: req.originalUrl });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Global error handler:', err.stack);
   res.status(500).json({ msg: 'Server error', error: err.message });
 });
 
 // Connect to MongoDB when the app initializes
-connectDB();
+connectDB().catch(err => {
+  console.error('Failed to connect to MongoDB:', err.message);
+});
 
 // For local development
 if (process.env.NODE_ENV !== 'production') {

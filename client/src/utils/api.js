@@ -16,7 +16,7 @@ api.interceptors.request.use(
     console.log('API Request:', {
       url: config.url,
       method: config.method,
-      data: config.data,
+      data: config.data ? 'Data present' : 'No data', // Don't log sensitive data
       headers: config.headers
     });
     const token = localStorage.getItem('token');
@@ -37,7 +37,7 @@ api.interceptors.response.use(
     console.log('API Response:', {
       url: response.config.url,
       status: response.status,
-      data: response.data
+      data: response.data ? 'Data received' : 'No data' // Don't log sensitive data
     });
     return response;
   },
@@ -45,7 +45,7 @@ api.interceptors.response.use(
     console.error('API Error:', {
       url: error.config?.url,
       status: error.response?.status,
-      data: error.response?.data,
+      data: error.response?.data ? 'Error data present' : 'No error data',
       message: error.message
     });
     if (error.response && error.response.status === 401) {
@@ -60,9 +60,9 @@ api.interceptors.response.use(
 // API function to register a user
 export const register = async (userData) => {
   try {
-    console.log('Register API call with data:', userData);
+    console.log('Register API call');
     const res = await api.post('/auth/register', userData);
-    console.log('Register API response:', res.data);
+    console.log('Register API success');
     if (res.data.token) {
       localStorage.setItem('token', res.data.token);
       console.log('Token stored in localStorage');
@@ -71,7 +71,6 @@ export const register = async (userData) => {
   } catch (err) {
     console.error('Register API error:', {
       message: err.message,
-      response: err.response?.data,
       status: err.response?.status
     });
     throw err;
@@ -81,9 +80,9 @@ export const register = async (userData) => {
 // API function to login a user
 export const login = async (userData) => {
   try {
-    console.log('Login API call with data:', userData);
+    console.log('Login API call');
     const res = await api.post('/auth/login', userData);
-    console.log('Login API response:', res.data);
+    console.log('Login API success');
     if (res.data.token) {
       localStorage.setItem('token', res.data.token);
       console.log('Token stored in localStorage');
@@ -92,7 +91,6 @@ export const login = async (userData) => {
   } catch (err) {
     console.error('Login API error:', {
       message: err.message,
-      response: err.response?.data,
       status: err.response?.status
     });
     throw err;
@@ -109,14 +107,13 @@ export const logout = () => {
 // API function to update user profile
 export const updateUser = async (userData) => {
   try {
-    console.log('Update user API call with data:', userData);
+    console.log('Update user API call');
     const res = await api.put('/auth/profile', userData);
-    console.log('Update user API response:', res.data);
+    console.log('Update user API success');
     return res.data;
   } catch (err) {
     console.error('Update user API error:', {
       message: err.message,
-      response: err.response?.data,
       status: err.response?.status
     });
     throw err;
@@ -128,12 +125,11 @@ export const changePassword = async (passwordData) => {
   try {
     console.log('Change password API call');
     const res = await api.put('/auth/password', passwordData);
-    console.log('Change password API response:', res.data);
+    console.log('Change password API success');
     return res.data;
   } catch (err) {
     console.error('Change password API error:', {
       message: err.message,
-      response: err.response?.data,
       status: err.response?.status
     });
     throw err;
@@ -145,14 +141,13 @@ export const deleteAccount = async () => {
   try {
     console.log('Delete account API call');
     const res = await api.delete('/auth/account');
-    console.log('Delete account API response:', res.data);
+    console.log('Delete account API success');
     localStorage.removeItem('token');
     window.location.href = '/login';
     return res.data;
   } catch (err) {
     console.error('Delete account API error:', {
       message: err.message,
-      response: err.response?.data,
       status: err.response?.status
     });
     throw err;
