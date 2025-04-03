@@ -17,16 +17,24 @@ export const UPDATE_PROFILE_FAIL = 'UPDATE_PROFILE_FAIL';
 // Load User
 export const loadUser = () => async (dispatch) => {
   try {
+    console.log('Loading user data...');
     const res = await api.get('/auth');
+    console.log('User data loaded:', res.data);
+    
     dispatch({
       type: USER_LOADED,
       payload: res.data
     });
     return res.data;
   } catch (err) {
+    console.error('Error loading user:', err);
     dispatch({
       type: AUTH_ERROR,
-      payload: { msg: err.response?.data?.msg || 'Error loading user' }
+      payload: { 
+        msg: err.response?.data?.msg || 'Error loading user',
+        status: err.response?.status,
+        error: err.message
+      }
     });
     throw err;
   }
@@ -40,6 +48,10 @@ export const register = (formData) => async (dispatch) => {
     console.log('Register action: Attempting to register user:', formData.email);
     const res = await api.post('/auth/register', formData);
     console.log('Register action: Server response:', res.data);
+    
+    if (!res.data.token) {
+      throw new Error('No token received from server');
+    }
     
     dispatch({
       type: REGISTER_SUCCESS,
@@ -61,6 +73,7 @@ export const register = (formData) => async (dispatch) => {
       payload: { 
         msg: err.response?.data?.msg || 'Registration failed',
         errors,
+        status: err.response?.status,
         error: err.message
       }
     });
@@ -77,6 +90,10 @@ export const login = (email, password) => async (dispatch) => {
     console.log('Login action: Attempting to login with email:', email);
     const res = await api.post('/auth/login', { email, password });
     console.log('Login action: Server response:', res.data);
+    
+    if (!res.data.token) {
+      throw new Error('No token received from server');
+    }
     
     dispatch({
       type: LOGIN_SUCCESS,
@@ -107,6 +124,7 @@ export const login = (email, password) => async (dispatch) => {
 
 // Logout
 export const logout = () => (dispatch) => {
+  console.log('Logout action called');
   dispatch({ type: LOGOUT });
   localStorage.removeItem('token');
   window.location.href = '/login';
@@ -117,7 +135,9 @@ export const updateProfile = (profileData) => async (dispatch) => {
   dispatch({ type: UPDATE_PROFILE_REQUEST });
   
   try {
+    console.log('Update profile action: Attempting to update profile');
     const res = await api.put('/auth/profile', profileData);
+    console.log('Update profile action: Server response:', res.data);
     
     dispatch({
       type: UPDATE_PROFILE_SUCCESS,
@@ -129,6 +149,8 @@ export const updateProfile = (profileData) => async (dispatch) => {
     
     return res.data;
   } catch (err) {
+    console.error('Update profile action error:', err);
+    
     dispatch({
       type: UPDATE_PROFILE_FAIL,
       payload: { 
