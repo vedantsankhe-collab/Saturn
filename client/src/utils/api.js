@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create an instance of axios
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production'
-    ? ''  // In production, use relative paths
+    ? '/api'  // In production, use /api prefix
     : 'http://localhost:5001', // In development, use the local server
   headers: {
     'Content-Type': 'application/json'
@@ -40,7 +40,7 @@ api.interceptors.response.use(
 // API function to register a user
 export const register = async (userData) => {
   try {
-    const res = await api.post('/api/auth/register', userData);
+    const res = await api.post('/auth/register', userData);
     if (res.data.token) {
       localStorage.setItem('token', res.data.token);
     }
@@ -54,7 +54,7 @@ export const register = async (userData) => {
 // API function to login a user
 export const login = async (userData) => {
   try {
-    const res = await api.post('/api/auth/login', userData);
+    const res = await api.post('/auth/login', userData);
     if (res.data.token) {
       localStorage.setItem('token', res.data.token);
     }
@@ -74,7 +74,7 @@ export const logout = () => {
 // API function to update user profile
 export const updateUser = async (userData) => {
   try {
-    const res = await api.put('/api/auth/profile', userData);
+    const res = await api.put('/auth/profile', userData);
     return res.data;
   } catch (err) {
     console.error('Update user error:', err.response?.data || err.message);
@@ -85,7 +85,7 @@ export const updateUser = async (userData) => {
 // API function to change password
 export const changePassword = async (passwordData) => {
   try {
-    const res = await api.put('/api/auth/password', passwordData);
+    const res = await api.put('/auth/password', passwordData);
     return res.data;
   } catch (err) {
     console.error('Change password error:', err.response?.data || err.message);
@@ -96,7 +96,7 @@ export const changePassword = async (passwordData) => {
 // API function to delete account
 export const deleteAccount = async () => {
   try {
-    const res = await api.delete('/api/auth/account');
+    const res = await api.delete('/auth/account');
     localStorage.removeItem('token');
     window.location.href = '/login';
     return res.data;
