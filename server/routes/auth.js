@@ -44,6 +44,9 @@ const createUser = async (userData) => {
 router.get('/', auth, async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
     res.json(user);
   } catch (err) {
     console.error('Get user error:', err.message);
@@ -105,7 +108,7 @@ router.post(
             console.error('JWT Sign Error:', err);
             return res.status(500).json({ msg: 'Error generating token', error: err.message });
           }
-          res.json({ token });
+          res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
         }
       );
     } catch (err) {
@@ -175,7 +178,7 @@ router.post(
             console.error('JWT Sign Error:', err);
             return res.status(500).json({ msg: 'Error generating token', error: err.message });
           }
-          res.json({ token });
+          res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
         }
       );
     } catch (err) {
