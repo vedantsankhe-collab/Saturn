@@ -18,15 +18,17 @@ export const UPDATE_PROFILE_FAIL = 'UPDATE_PROFILE_FAIL';
 export const loadUser = () => async (dispatch) => {
   try {
     const res = await api.get('/auth');
-    
     dispatch({
       type: USER_LOADED,
       payload: res.data
     });
+    return res.data;
   } catch (err) {
     dispatch({
-      type: AUTH_ERROR
+      type: AUTH_ERROR,
+      payload: { msg: err.response?.data?.msg || 'Error loading user' }
     });
+    throw err;
   }
 };
 
@@ -63,7 +65,7 @@ export const register = (formData) => async (dispatch) => {
       }
     });
     
-    return Promise.reject(err);
+    throw err;
   }
 };
 
@@ -99,7 +101,7 @@ export const login = (email, password) => async (dispatch) => {
       }
     });
     
-    return Promise.reject(err);
+    throw err;
   }
 };
 
@@ -136,6 +138,6 @@ export const updateProfile = (profileData) => async (dispatch) => {
       }
     });
     
-    return Promise.reject(err);
+    throw err;
   }
 }; 
