@@ -4,7 +4,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production'
     ? '/api'  // In production, use /api prefix
-    : 'http://localhost:5001', // In development, use the local server
+    : 'http://localhost:5001/api', // In development, use the local server
   headers: {
     'Content-Type': 'application/json'
   }

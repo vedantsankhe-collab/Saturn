@@ -25,9 +25,11 @@ const Register = () => {
     confirmPassword: ''
   });
   const [localError, setLocalError] = useState('');
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
+      console.log('User is authenticated, redirecting to dashboard');
       navigate('/dashboard');
     }
     
@@ -36,6 +38,36 @@ const Register = () => {
       if (clearError) clearError();
     };
   }, [isAuthenticated, navigate, clearError]);
+
+  const validateForm = () => {
+    // Basic validation
+    if (!formData.name.trim()) {
+      setLocalError('Name is required');
+      return false;
+    }
+    
+    if (!formData.email.trim()) {
+      setLocalError('Email is required');
+      return false;
+    }
+    
+    if (!formData.email.includes('@')) {
+      setLocalError('Please enter a valid email address');
+      return false;
+    }
+    
+    if (formData.password.length < 6) {
+      setLocalError('Password must be at least 6 characters');
+      return false;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setLocalError('Passwords do not match');
+      return false;
+    }
+    
+    return true;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,18 +80,39 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormSubmitted(true);
     
-    // Validate password match
-    if (formData.password !== formData.confirmPassword) {
-      setLocalError('Passwords do not match');
+    console.log('Register form submitted with data:', {
+      name: formData.name,
+      email: formData.email,
+      passwordLength: formData.password.length
+    });
+    
+    // Validate form
+    if (!validateForm()) {
+      console.log('Form validation failed:', localError);
       return;
     }
     
     try {
-      await register(formData);
+      console.log('Attempting to register user...');
+      // Create a new object without confirmPassword
+      const registrationData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password
+      };
+      
+      await register(registrationData);
+      console.log('Registration successful');
     } catch (err) {
-      // Error is handled in the AuthContext
       console.error('Registration form error:', err);
+      // If there's a network error, set a local error
+      if (err.message === 'Network Error') {
+        setLocalError('Cannot connect to server. Please check your internet connection.');
+      }
+    } finally {
+      setFormSubmitted(false);
     }
   };
 
@@ -100,6 +153,8 @@ const Register = () => {
             autoFocus
             value={formData.name}
             onChange={handleChange}
+            error={formSubmitted && !formData.name.trim()}
+            helperText={formSubmitted && !formData.name.trim() ? 'Name is required' : ''}
           />
           <TextField
             margin="normal"
@@ -111,6 +166,14 @@ const Register = () => {
             autoComplete="email"
             value={formData.email}
             onChange={handleChange}
+            error={formSubmitted && (!formData.email.trim() || !formData.email.includes('@'))}
+            helperText={
+              formSubmitted && !formData.email.trim() 
+                ? 'Email is required' 
+                : formSubmitted && !formData.email.includes('@') 
+                  ? 'Please enter a valid email address' 
+                  : ''
+            }
           />
           <TextField
             margin="normal"
@@ -123,6 +186,8 @@ const Register = () => {
             autoComplete="new-password"
             value={formData.password}
             onChange={handleChange}
+            error={formSubmitted && formData.password.length < 6}
+            helperText={formSubmitted && formData.password.length < 6 ? 'Password must be at least 6 characters' : ''}
           />
           <TextField
             margin="normal"
@@ -134,6 +199,8 @@ const Register = () => {
             id="confirmPassword"
             value={formData.confirmPassword}
             onChange={handleChange}
+            error={formSubmitted && formData.password !== formData.confirmPassword}
+            helperText={formSubmitted && formData.password !== formData.confirmPassword ? 'Passwords do not match' : ''}
           />
           <Button
             type="submit"

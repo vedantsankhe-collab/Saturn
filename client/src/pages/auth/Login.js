@@ -22,9 +22,12 @@ const Login = () => {
     email: '',
     password: ''
   });
+  const [localError, setLocalError] = useState('');
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
+      console.log('User is authenticated, redirecting to dashboard');
       navigate('/dashboard');
     }
     
@@ -34,21 +37,59 @@ const Login = () => {
     };
   }, [isAuthenticated, navigate, clearError]);
 
+  const validateForm = () => {
+    // Basic validation
+    if (!formData.email.trim()) {
+      setLocalError('Email is required');
+      return false;
+    }
+    
+    if (!formData.email.includes('@')) {
+      setLocalError('Please enter a valid email address');
+      return false;
+    }
+    
+    if (!formData.password) {
+      setLocalError('Password is required');
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({
       ...prevState,
       [name]: value
     }));
+    setLocalError(''); // Clear error when user types
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormSubmitted(true);
+    
+    console.log('Login form submitted with email:', formData.email);
+    
+    // Validate form
+    if (!validateForm()) {
+      console.log('Form validation failed:', localError);
+      return;
+    }
+    
     try {
+      console.log('Attempting to login user...');
       await login(formData.email, formData.password);
+      console.log('Login successful');
     } catch (err) {
-      // Error is handled in the AuthContext
       console.error('Login form error:', err);
+      // If there's a network error, set a local error
+      if (err.message === 'Network Error') {
+        setLocalError('Cannot connect to server. Please check your internet connection.');
+      }
+    } finally {
+      setFormSubmitted(false);
     }
   };
 
@@ -71,9 +112,9 @@ const Login = () => {
           Sign in
         </Typography>
         
-        {error && (
+        {(error || localError) && (
           <Alert severity="error" sx={{ mb: 2, width: '100%' }}>
-            {error}
+            {localError || error}
           </Alert>
         )}
         
@@ -89,6 +130,14 @@ const Login = () => {
             autoFocus
             value={formData.email}
             onChange={handleChange}
+            error={formSubmitted && (!formData.email.trim() || !formData.email.includes('@'))}
+            helperText={
+              formSubmitted && !formData.email.trim() 
+                ? 'Email is required' 
+                : formSubmitted && !formData.email.includes('@') 
+                  ? 'Please enter a valid email address' 
+                  : ''
+            }
           />
           <TextField
             margin="normal"
@@ -101,6 +150,8 @@ const Login = () => {
             autoComplete="current-password"
             value={formData.password}
             onChange={handleChange}
+            error={formSubmitted && !formData.password}
+            helperText={formSubmitted && !formData.password ? 'Password is required' : ''}
           />
           <Button
             type="submit"
