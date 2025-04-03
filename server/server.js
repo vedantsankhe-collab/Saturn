@@ -26,7 +26,11 @@ const stockMarketRoutes = require('./routes/stockMarket');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-auth-token']
+}));
 app.use(express.json());
 
 // Define routes
@@ -51,18 +55,23 @@ if (process.env.NODE_ENV === 'production') {
 // Connect to MongoDB
 const connectDB = async () => {
   try {
-    console.log('Attempting to connect to MongoDB with URI:', process.env.MONGO_URI.replace(/:[^:]*@/, ':****@'));
+    if (!process.env.MONGO_URI) {
+      throw new Error('MONGO_URI is not defined in environment variables');
+    }
+
+    console.log('Attempting to connect to MongoDB...');
     
-    await mongoose.connect(process.env.MONGO_URI, {
+    const mongoOptions = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 30000, // 30 seconds
-      socketTimeoutMS: 45000, // 45 seconds
-      connectTimeoutMS: 30000, // 30 seconds
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 5000,
       retryWrites: true,
-      w: 'majority',
-      authSource: 'admin'
-    });
+      w: 'majority'
+    };
+
+    await mongoose.connect(process.env.MONGO_URI, mongoOptions);
     
     console.log('MongoDB connected successfully');
     
