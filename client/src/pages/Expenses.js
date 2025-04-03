@@ -32,7 +32,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { Add, Delete, Edit, FilterList, Sort, AttachMoney } from '@mui/icons-material';
-import api from '../utils/api';
+import { api } from '../utils/api';
 
 const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -80,7 +80,9 @@ const Expenses = () => {
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/expenses');
+      console.log('Fetching expenses...');
+      const res = await api.get('/api/expenses');
+      console.log('Expenses fetched:', res.data);
       setExpenses(res.data);
       setError(null);
     } catch (err) {
@@ -93,9 +95,11 @@ const Expenses = () => {
 
   const fetchCategories = async () => {
     try {
-      const res = await api.get('/categories');
+      console.log('Fetching categories...');
+      const res = await api.get('/api/categories');
       // Filter to only expense categories
       const expenseCategories = res.data.filter(cat => cat.type === 'expense');
+      console.log('Categories fetched:', expenseCategories);
       setCategories(expenseCategories);
     } catch (err) {
       console.error('Failed to fetch categories', err);
@@ -111,9 +115,11 @@ const Expenses = () => {
     
     try {
       if (editMode) {
-        await api.put(`/expenses/${currentId}`, formData);
+        console.log('Updating expense:', currentId, formData);
+        await api.put(`/api/expenses/${currentId}`, formData);
       } else {
-        await api.post('/expenses', formData);
+        console.log('Creating new expense:', formData);
+        await api.post('/api/expenses', formData);
       }
       
       resetForm();
@@ -150,7 +156,8 @@ const Expenses = () => {
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/expenses/${expenseToDelete}`);
+      console.log('Deleting expense:', expenseToDelete);
+      await api.delete(`/api/expenses/${expenseToDelete}`);
       setExpenses(expenses.filter(expense => expense._id !== expenseToDelete));
       setDeleteDialogOpen(false);
       setExpenseToDelete(null);

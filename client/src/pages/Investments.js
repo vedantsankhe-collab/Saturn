@@ -46,10 +46,10 @@ import {
   ShowChart,
   AccountBalance
 } from '@mui/icons-material';
-import api from '../utils/api';
+import { api } from '../utils/api';
 import StockTracker from '../components/StockTracker';
 import InvestmentChatbot from '../components/InvestmentChatbot';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -59,7 +59,8 @@ import {
   BarElement,
   Title,
   Tooltip as ChartTooltip,
-  Legend
+  Legend,
+  ArcElement
 } from 'chart.js';
 
 ChartJS.register(
@@ -68,16 +69,31 @@ ChartJS.register(
   PointElement,
   LineElement,
   BarElement,
+  ArcElement,
   Title,
   ChartTooltip,
   Legend
 );
 
-const TabPanel = ({ children, value, index }) => (
-  <div hidden={value !== index} style={{ padding: '20px 0' }}>
-    {value === index && children}
-  </div>
-);
+const TabPanel = (props) => {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`investment-tabpanel-${index}`}
+      aria-labelledby={`investment-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+};
 
 const Investments = () => {
   const [investments, setInvestments] = useState([]);
@@ -159,9 +175,25 @@ const Investments = () => {
     try {
       console.log('Fetching investments...');
       const res = await api.get('/api/investments');
-      console.log('Investments fetched:', res.data);
-      setInvestments(res.data);
-      setError(null);
+      console.log('Investments fetched successfully:', res.data);
+      
+      if (Array.isArray(res.data)) {
+        setInvestments(res.data);
+        
+        // Now that investments are loaded, update derived stats
+        if (res.data.length > 0) {
+          setTimeout(() => {
+            calculatePortfolioStats();
+            calculateAssetAllocation();
+            updatePortfolioMetrics();
+          }, 0);
+        }
+        
+        setError(null);
+      } else {
+        console.error('Invalid investments data format:', res.data);
+        setError('Received invalid investments data format');
+      }
     } catch (err) {
       console.error('Error fetching investments:', err);
       setError('Failed to fetch investments. Please try again.');
@@ -173,10 +205,28 @@ const Investments = () => {
   const fetchPortfolioData = async () => {
     setLoading(true);
     try {
+      console.log('Fetching portfolio data...');
       const response = await api.get('/api/investments/portfolio');
-      console.log('Portfolio data fetched:', response.data);
-      setPortfolio(response.data);
-      setError(null);
+      console.log('Portfolio data fetched successfully:', response.data);
+      
+      if (response.data && typeof response.data === 'object') {
+        setPortfolio(response.data);
+        
+        // Update portfolio metrics based on the fetched data
+        if (response.data.totalValue !== undefined) {
+          setPortfolioMetrics({
+            totalValue: response.data.totalValue || 0,
+            totalCost: response.data.totalCost || 0,
+            totalReturn: response.data.totalReturn || 0,
+            returnPercentage: response.data.returnPercentage || 0
+          });
+        }
+        
+        setError(null);
+      } else {
+        console.error('Invalid portfolio data format:', response.data);
+        setError('Received invalid portfolio data format');
+      }
     } catch (error) {
       console.error('Error fetching portfolio data:', error);
       setError('Failed to fetch portfolio data. Please try again.');
@@ -187,24 +237,22 @@ const Investments = () => {
 
   const fetchStockData = async (symbol) => {
     try {
-      const response = await api.get(`/api/indian-stocks/${symbol}/data`);
-      console.log('Stock data fetched:', response.data);
+      console.log('Fetching stock data for symbol:', symbol);
+      const response = await api.get(`/api/stocks/${symbol}`);
+      console.log('Stock data fetched successfully:', response.data);
       setStockData(response.data);
       
       // Update form data with current stock price
-      if (response.data.datasets && response.data.datasets[0].data.length > 0) {
+      if (response.data && response.data.datasets && response.data.datasets[0].data.length > 0) {
         const currentPrice = response.data.datasets[0].data[response.data.datasets[0].data.length - 1];
         setFormData(prev => ({ 
           ...prev, 
           currentPrice: currentPrice.toString() 
         }));
-        console.log('Current price set from API:', currentPrice);
-      } else {
-        console.log('No stock price data available from API');
       }
     } catch (error) {
       console.error('Error fetching stock data:', error);
-      // Don't update currentPrice on error, keep existing value
+      setError('Failed to fetch stock data. Please try again.');
     }
   };
 
@@ -214,19 +262,45 @@ const Investments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     try {
+      const formattedData = { ...formData };
+      
+      // Convert string amounts to numbers
+      if (formattedData.amount) formattedData.amount = parseFloat(formattedData.amount);
+      if (formattedData.purchasePrice) formattedData.purchasePrice = parseFloat(formattedData.purchasePrice);
+      if (formattedData.currentPrice) formattedData.currentPrice = parseFloat(formattedData.currentPrice);
+      if (formattedData.quantity) formattedData.quantity = parseFloat(formattedData.quantity);
+      
+      console.log('Submitting investment:', formattedData);
+      
       if (editMode) {
-        await api.put(`/investments/${currentId}`, formData);
+        console.log('Updating investment:', currentId);
+        await api.put(`/api/investments/${currentId}`, formattedData);
+        setSnackbar({
+          open: true,
+          message: 'Investment updated successfully!',
+          severity: 'success'
+        });
       } else {
-        await api.post('/investments', formData);
+        console.log('Creating new investment');
+        await api.post('/api/investments', formattedData);
+        setSnackbar({
+          open: true,
+          message: 'Investment added successfully!',
+          severity: 'success'
+        });
       }
       
       resetForm();
       fetchInvestments();
+      fetchPortfolioData();
     } catch (err) {
-      setError(err.response?.data?.msg || 'Failed to save investment');
-      console.error(err);
+      console.error('Error saving investment:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Failed to save investment',
+        severity: 'error'
+      });
     }
   };
 
@@ -264,34 +338,23 @@ const Investments = () => {
 
   const handleDelete = async () => {
     try {
+      console.log('Deleting investment:', investmentToDelete);
       await api.delete(`/api/investments/${investmentToDelete}`);
       
-      // Refresh investment data after deletion
-      await fetchInvestments();
-      await fetchPortfolioData();
-      
-      // Update portfolio metrics
-      updatePortfolioMetrics();
-      calculatePortfolioStats();
-      calculateAssetAllocation();
-      
+      setInvestments(investments.filter(inv => inv._id !== investmentToDelete));
       setDeleteDialogOpen(false);
       setInvestmentToDelete(null);
       
-      // Show success message
       setSnackbar({
         open: true,
-        message: 'Investment deleted successfully',
+        message: 'Investment deleted successfully!',
         severity: 'success'
       });
     } catch (err) {
       console.error('Error deleting investment:', err);
-      setError('Failed to delete investment');
-      
-      // Show error message
       setSnackbar({
         open: true,
-        message: `Error deleting investment: ${err.response?.data?.msg || err.message}`,
+        message: 'Failed to delete investment',
         severity: 'error'
       });
     }
@@ -348,44 +411,62 @@ const Investments = () => {
   };
 
   const calculateAssetAllocation = () => {
-    const totalValue = investments.reduce((sum, inv) => sum + (inv.currentPrice * inv.amount), 0);
+    console.log('Calculating asset allocation from investments:', investments);
     
-    if (totalValue === 0) {
-      setAssetAllocation({
-        stock: 0,
-        bond: 0,
-        realEstate: 0,
-        crypto: 0,
-        other: 0
-      });
+    if (!investments || investments.length === 0) {
+      console.log('No investments available to calculate asset allocation');
       return;
     }
     
-    const allocation = {
-      stock: 0,
-      bond: 0,
-      realEstate: 0,
-      crypto: 0,
-      other: 0
-    };
-    
-    investments.forEach(inv => {
-      const value = inv.currentPrice * inv.amount;
-      const percentage = (value / totalValue) * 100;
+    try {
+      // Initialize allocation counters
+      let totalStock = 0;
+      let totalBond = 0;
+      let totalRealEstate = 0;
+      let totalCrypto = 0;
+      let totalOther = 0;
+      let portfolioTotal = 0;
       
-      if (inv.type in allocation) {
-        allocation[inv.type] += percentage;
-      } else {
-        allocation.other += percentage;
-      }
-    });
-    
-    // Round to 2 decimal places
-    Object.keys(allocation).forEach(key => {
-      allocation[key] = parseFloat(allocation[key].toFixed(2));
-    });
-    
-    setAssetAllocation(allocation);
+      // Calculate total value by type
+      investments.forEach(investment => {
+        if (investment.quantity && investment.currentPrice) {
+          const value = investment.quantity * investment.currentPrice;
+          portfolioTotal += value;
+          
+          switch (investment.type) {
+            case 'stock':
+              totalStock += value;
+              break;
+            case 'bond':
+              totalBond += value;
+              break;
+            case 'realEstate':
+              totalRealEstate += value;
+              break;
+            case 'crypto':
+              totalCrypto += value;
+              break;
+            default:
+              totalOther += value;
+              break;
+          }
+        }
+      });
+      
+      // Convert to percentages
+      const allocation = {
+        stock: portfolioTotal > 0 ? (totalStock / portfolioTotal) * 100 : 0,
+        bond: portfolioTotal > 0 ? (totalBond / portfolioTotal) * 100 : 0,
+        realEstate: portfolioTotal > 0 ? (totalRealEstate / portfolioTotal) * 100 : 0,
+        crypto: portfolioTotal > 0 ? (totalCrypto / portfolioTotal) * 100 : 0,
+        other: portfolioTotal > 0 ? (totalOther / portfolioTotal) * 100 : 0
+      };
+      
+      console.log('Updated asset allocation:', allocation);
+      setAssetAllocation(allocation);
+    } catch (error) {
+      console.error('Error calculating asset allocation:', error);
+    }
   };
 
   const getPerformanceColor = (value) => {
@@ -451,13 +532,22 @@ const Investments = () => {
         throw new Error('Please enter a valid stock name/symbol');
       }
 
+      // Debug log
+      console.log('Building investment data payload...');
+
+      // Ensure purchaseDate is in the correct format
+      let purchaseDate = formData.purchaseDate;
+      if (!purchaseDate) {
+        purchaseDate = new Date().toISOString().split('T')[0];
+      }
+
       const investmentData = {
         symbol: selectedStock ? selectedStock.symbol : formData.name,
         companyName: selectedStock ? selectedStock.companyName : formData.name,
         quantity: quantity,
         purchasePrice: purchasePrice,
         currentPrice: currentPrice,
-        purchaseDate: formData.purchaseDate,
+        purchaseDate: purchaseDate,
         notes: formData.notes || ''
       };
 
@@ -465,9 +555,11 @@ const Investments = () => {
 
       let response;
       if (editMode) {
+        console.log(`Sending PUT request to /api/investments/${currentId}`);
         response = await api.put(`/api/investments/${currentId}`, investmentData);
         console.log('Investment updated, server response:', response.data);
       } else {
+        console.log('Sending POST request to /api/investments');
         response = await api.post('/api/investments', investmentData);
         console.log('Investment created, server response:', response.data);
       }
@@ -483,6 +575,10 @@ const Investments = () => {
       // Also fetch portfolio data again
       await fetchPortfolioData();
       
+      // Clear the form and selected stock
+      resetForm();
+      setSelectedStock(null);
+      
       handleCloseDialog();
       
       // Show success message
@@ -493,6 +589,7 @@ const Investments = () => {
       });
     } catch (error) {
       console.error('Error submitting investment:', error);
+      console.error('Error response:', error.response);
       console.error('Error details:', error.response?.data);
       
       setSnackbar({
@@ -522,12 +619,14 @@ const Investments = () => {
                                       : '0';
                                       
       console.log('Using price for form:', priceToUse);
-                                      
+      
+      // Ensure we have valid data in all fields
       return {
         ...prev,
         name: stock.symbol,
-        companyName: stock.companyName || stock.symbol,
-        currentPrice: priceToUse
+        currentPrice: priceToUse,
+        // If purchasing for the first time, set purchase price to current price
+        purchasePrice: prev.purchasePrice || priceToUse
       };
     });
     
@@ -535,45 +634,46 @@ const Investments = () => {
   };
 
   const updatePortfolioMetrics = () => {
-    console.log('Updating portfolio metrics with investments:', investments);
+    console.log('Updating portfolio metrics from investments:', investments);
+    
     if (!investments || investments.length === 0) {
-      console.log('No investments found, setting default metrics');
-      setPortfolioMetrics({
-        totalValue: 0,
-        totalCost: 0,
-        totalReturn: 0,
-        returnPercentage: 0
-      });
+      console.log('No investments available to calculate metrics');
       return;
     }
     
-    const totalValue = investments.reduce((sum, inv) => {
-      const value = parseFloat(inv.currentPrice) * parseFloat(inv.quantity);
-      console.log(`Investment ${inv.symbol}: ${inv.quantity} units at ${inv.currentPrice} = ${value}`);
-      return sum + value;
-    }, 0);
-    
-    const totalCost = investments.reduce((sum, inv) => {
-      const cost = parseFloat(inv.purchasePrice) * parseFloat(inv.quantity);
-      return sum + cost;
-    }, 0);
-    
-    const totalReturn = totalValue - totalCost;
-    const returnPercentage = totalCost > 0 ? ((totalReturn / totalCost) * 100) : 0;
-
-    console.log('Calculated metrics:', {
-      totalValue,
-      totalCost,
-      totalReturn,
-      returnPercentage
-    });
-
-    setPortfolioMetrics({
-      totalValue,
-      totalCost,
-      totalReturn,
-      returnPercentage
-    });
+    try {
+      // Calculate total portfolio value and cost
+      let totalValue = 0;
+      let totalCost = 0;
+      
+      investments.forEach(investment => {
+        if (investment.quantity && investment.currentPrice) {
+          const investmentValue = investment.quantity * investment.currentPrice;
+          totalValue += investmentValue;
+        }
+        
+        if (investment.quantity && investment.purchasePrice) {
+          const investmentCost = investment.quantity * investment.purchasePrice;
+          totalCost += investmentCost;
+        }
+      });
+      
+      // Calculate total return and percentage
+      const totalReturn = totalValue - totalCost;
+      const returnPercentage = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0;
+      
+      const updatedMetrics = {
+        totalValue,
+        totalCost,
+        totalReturn,
+        returnPercentage
+      };
+      
+      console.log('Updated portfolio metrics:', updatedMetrics);
+      setPortfolioMetrics(updatedMetrics);
+    } catch (error) {
+      console.error('Error calculating portfolio metrics:', error);
+    }
   };
 
   const renderTabContent = () => {
@@ -983,24 +1083,7 @@ const Investments = () => {
         );
       
       case 3: // Stock Tracker
-        return (
-          <Box>
-            <StockTracker onStockSelect={handleStockSelect} />
-            {selectedStock && (
-              <Paper sx={{ p: 2, mt: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Selected Stock: {selectedStock.symbol}
-                </Typography>
-                <Typography>
-                  Current Price: ₹{selectedStock.price.toFixed(2)}
-                </Typography>
-                <Typography>
-                  Change: {selectedStock.change}%
-                </Typography>
-              </Paper>
-            )}
-          </Box>
-        );
+        return renderStockTrackerPanel();
       
       case 4: // Investment Chatbot
         return <InvestmentChatbot />;
@@ -1008,6 +1091,84 @@ const Investments = () => {
       default:
         return null;
     }
+  };
+
+  const renderStockTrackerPanel = () => {
+    return (
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Stock Tracker
+        </Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Search for stocks to track and add to your portfolio.
+        </Alert>
+        <Box sx={{ mb: 2 }}>
+          <StockTracker 
+            onStockSelect={handleStockSelect} 
+            onAddInvestment={handleAddInvestmentClick}
+          />
+        </Box>
+        
+        {selectedStock && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              {selectedStock.companyName || selectedStock.name} ({selectedStock.symbol})
+            </Typography>
+            
+            {stockData ? (
+              <Box sx={{ height: 300 }}>
+                <Line 
+                  data={stockData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: true,
+                        position: 'top',
+                      },
+                      tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: false,
+                        title: {
+                          display: true,
+                          text: 'Price (₹)'
+                        }
+                      },
+                      x: {
+                        title: {
+                          display: true,
+                          text: 'Date'
+                        }
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            )}
+            
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Add />}
+              onClick={handleAddInvestmentClick}
+              sx={{ mt: 2 }}
+            >
+              Add to Portfolio
+            </Button>
+          </Box>
+        )}
+      </Box>
+    );
   };
 
   const renderAddInvestmentDialog = () => (
@@ -1169,124 +1330,116 @@ const Investments = () => {
     </Dialog>
   );
 
-  const renderStockTrackerPanel = () => (
-    <Box>
-      <StockTracker onStockSelect={handleStockSelect} />
-      {selectedStock && (
-        <Paper sx={{ p: 2, mt: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Selected Stock: {selectedStock.symbol}
-          </Typography>
-          <Typography>
-            Current Price: ₹{selectedStock.price.toFixed(2)}
-          </Typography>
-          <Typography>
-            Change: {selectedStock.change}%
-          </Typography>
-        </Paper>
-      )}
-    </Box>
-  );
-
   const renderPortfolioCharts = () => {
-    const portfolioData = {
-      labels: investments.map(inv => inv.symbol || inv.name),
+    // Prepare data for Asset Allocation chart
+    const assetAllocationData = {
+      labels: Object.keys(assetAllocation).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
       datasets: [
         {
-          label: 'Portfolio Value',
-          data: investments.map(inv => inv.currentPrice * inv.quantity),
-          backgroundColor: 'rgba(54, 162, 235, 0.5)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        }
-      ]
+          data: Object.values(assetAllocation),
+          backgroundColor: [
+            'rgba(54, 162, 235, 0.6)', // Stock
+            'rgba(255, 206, 86, 0.6)', // Bond
+            'rgba(75, 192, 192, 0.6)', // Real Estate
+            'rgba(153, 102, 255, 0.6)', // Crypto
+            'rgba(255, 159, 64, 0.6)'  // Other
+          ],
+          borderColor: [
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)'
+          ],
+          borderWidth: 1,
+        },
+      ],
     };
 
-    const returnsData = {
-      labels: investments.map(inv => inv.symbol || inv.name),
+    // Performance data (monthly returns)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentMonth = new Date().getMonth();
+    const lastSixMonths = months.slice(currentMonth - 5, currentMonth + 1);
+    
+    const performanceData = {
+      labels: lastSixMonths,
       datasets: [
         {
-          label: 'Total Returns',
-          data: investments.map(inv => {
-            const totalValue = inv.currentPrice * inv.quantity;
-            const totalCost = inv.purchasePrice * inv.quantity;
-            return totalValue - totalCost;
-          }),
-          backgroundColor: investments.map(inv => {
-            const totalValue = inv.currentPrice * inv.quantity;
-            const totalCost = inv.purchasePrice * inv.quantity;
-            return (totalValue - totalCost) >= 0 ? 'rgba(75, 192, 192, 0.5)' : 'rgba(255, 99, 132, 0.5)';
-          }),
-          borderColor: investments.map(inv => {
-            const totalValue = inv.currentPrice * inv.quantity;
-            const totalCost = inv.purchasePrice * inv.quantity;
-            return (totalValue - totalCost) >= 0 ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)';
-          }),
-          borderWidth: 1
+          label: 'Monthly Return (%)',
+          data: [2.5, 1.8, -0.9, 3.2, 2.1, portfolioMetrics.returnPercentage || 1.5],
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 2,
+          tension: 0.4,
+        },
+      ],
+    };
+    
+    console.log('Rendering portfolio charts with data:', { 
+      assetAllocation, 
+      performanceData, 
+      portfolioMetrics 
+    });
+
+    const chartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += (context.parsed || 0) + '%';
+              return label;
+            }
+          }
         }
-      ]
+      },
     };
 
     return (
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: 2, height: 300, position: 'relative' }}>
             <Typography variant="h6" gutterBottom>
-              Portfolio Value by Investment
+              Asset Allocation
             </Typography>
-            <Bar
-              data={portfolioData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    position: 'top',
-                  },
-                  title: {
-                    display: true,
-                    text: 'Portfolio Value Distribution'
-                  }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: value => `₹${value.toLocaleString()}`
-                    }
-                  }
-                }
-              }}
-            />
+            {investments.length > 0 ? (
+              <Box sx={{ height: 240, position: 'relative' }}>
+                <Doughnut data={assetAllocationData} options={chartOptions} />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 240 }}>
+                <Typography color="textSecondary">
+                  No investment data available
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
+        
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: 2, height: 300 }}>
             <Typography variant="h6" gutterBottom>
-              Returns by Investment
+              Performance (Last 6 Months)
             </Typography>
-            <Bar
-              data={returnsData}
-              options={{
-                responsive: true,
-                plugins: {
-                  legend: {
-                    position: 'top',
-                  },
-                  title: {
-                    display: true,
-                    text: 'Investment Returns'
-                  }
-                },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: value => `₹${value.toLocaleString()}`
-                    }
-                  }
-                }
-              }}
-            />
+            {investments.length > 0 ? (
+              <Box sx={{ height: 240 }}>
+                <Line data={performanceData} options={chartOptions} />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 240 }}>
+                <Typography color="textSecondary">
+                  No performance data available
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
       </Grid>
@@ -1296,110 +1449,149 @@ const Investments = () => {
   const renderPortfolioPanel = () => (
     <Box>
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Portfolio Summary</Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<Add />}
-              onClick={handleAddInvestmentClick}
-            >
-              Add Investment
-            </Button>
+        {/* Portfolio Summary Cards */}
+        <Grid item xs={12} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Total Value
+              </Typography>
+              <Typography variant="h4" color="primary.main">
+                ${portfolioMetrics.totalValue.toFixed(2)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Total Cost
+              </Typography>
+              <Typography variant="h4">
+                ${portfolioMetrics.totalCost.toFixed(2)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Total Return
+              </Typography>
+              <Typography 
+                variant="h4" 
+                color={portfolioMetrics.totalReturn >= 0 ? 'success.main' : 'error.main'}
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                {portfolioMetrics.totalReturn >= 0 ? <TrendingUp sx={{ mr: 1 }} /> : <TrendingDown sx={{ mr: 1 }} />}
+                ${Math.abs(portfolioMetrics.totalReturn).toFixed(2)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                Return Rate
+              </Typography>
+              <Typography 
+                variant="h4" 
+                color={portfolioMetrics.returnPercentage >= 0 ? 'success.main' : 'error.main'}
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                {portfolioMetrics.returnPercentage >= 0 ? <TrendingUp sx={{ mr: 1 }} /> : <TrendingDown sx={{ mr: 1 }} />}
+                {Math.abs(portfolioMetrics.returnPercentage).toFixed(2)}%
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+      
+      {/* Portfolio Charts */}
+      {renderPortfolioCharts()}
+      
+      {/* Investments Table */}
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Your Investments</Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleAddInvestmentClick}
+          >
+            Add Investment
+          </Button>
+        </Box>
+        
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress />
           </Box>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="subtitle2" color="textSecondary">Total Portfolio Value</Typography>
-            <Typography variant="h4" sx={{ mt: 1 }}>₹{portfolioMetrics.totalValue.toFixed(2)}</Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="subtitle2" color="textSecondary">Total Cost</Typography>
-            <Typography variant="h4" sx={{ mt: 1 }}>₹{portfolioMetrics.totalCost.toFixed(2)}</Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="subtitle2" color="textSecondary">Total Return</Typography>
-            <Typography 
-              variant="h4" 
-              sx={{ mt: 1, color: portfolioMetrics.totalReturn >= 0 ? 'success.main' : 'error.main' }}
-            >
-              ₹{portfolioMetrics.totalReturn.toFixed(2)}
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={3}>
-          <Paper sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="subtitle2" color="textSecondary">Return Percentage</Typography>
-            <Typography 
-              variant="h4" 
-              sx={{ mt: 1, color: portfolioMetrics.returnPercentage >= 0 ? 'success.main' : 'error.main' }}
-            >
-              {portfolioMetrics.returnPercentage.toFixed(2)}%
-            </Typography>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12}>
-          {renderPortfolioCharts()}
-        </Grid>
-
-        <Grid item xs={12}>
-          <TableContainer component={Paper}>
+        ) : investments.length === 0 ? (
+          <Alert severity="info">
+            You don't have any investments yet. Add your first investment to get started.
+          </Alert>
+        ) : (
+          <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Symbol</TableCell>
-                  <TableCell>Company Name</TableCell>
+                  <TableCell>Name/Symbol</TableCell>
+                  <TableCell>Type</TableCell>
                   <TableCell align="right">Quantity</TableCell>
                   <TableCell align="right">Purchase Price</TableCell>
                   <TableCell align="right">Current Price</TableCell>
                   <TableCell align="right">Total Value</TableCell>
-                  <TableCell align="right">Gain/Loss</TableCell>
-                  <TableCell align="right">Return %</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                  <TableCell align="right">Return</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {investments.map((investment) => {
-                  const totalValue = investment.currentPrice * investment.quantity;
-                  const totalCost = investment.purchasePrice * investment.quantity;
-                  const gain = totalValue - totalCost;
-                  const returnPercentage = totalCost > 0 ? (gain / totalCost) * 100 : 0;
+                  const totalValue = investment.quantity * investment.currentPrice;
+                  const totalCost = investment.quantity * investment.purchasePrice;
+                  const totalReturn = totalValue - totalCost;
+                  const returnPercentage = totalCost > 0 ? (totalReturn / totalCost) * 100 : 0;
                   
                   return (
                     <TableRow key={investment._id}>
-                      <TableCell>{investment.symbol}</TableCell>
-                      <TableCell>{investment.companyName}</TableCell>
+                      <TableCell>{investment.symbol || investment.name}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={investment.type.charAt(0).toUpperCase() + investment.type.slice(1)} 
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </TableCell>
                       <TableCell align="right">{investment.quantity}</TableCell>
-                      <TableCell align="right">₹{investment.purchasePrice.toFixed(2)}</TableCell>
-                      <TableCell align="right">₹{investment.currentPrice.toFixed(2)}</TableCell>
-                      <TableCell align="right">₹{totalValue.toFixed(2)}</TableCell>
-                      <TableCell 
-                        align="right"
-                        sx={{ color: gain >= 0 ? 'success.main' : 'error.main' }}
-                      >
-                        ₹{gain.toFixed(2)}
+                      <TableCell align="right">${investment.purchasePrice}</TableCell>
+                      <TableCell align="right">${investment.currentPrice}</TableCell>
+                      <TableCell align="right">${totalValue.toFixed(2)}</TableCell>
+                      <TableCell align="right">
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'flex-end',
+                            color: returnPercentage >= 0 ? 'success.main' : 'error.main'
+                          }}
+                        >
+                          {returnPercentage >= 0 ? <TrendingUp fontSize="small" sx={{ mr: 0.5 }} /> : <TrendingDown fontSize="small" sx={{ mr: 0.5 }} />}
+                          {returnPercentage.toFixed(2)}%
+                        </Box>
                       </TableCell>
-                      <TableCell 
-                        align="right"
-                        sx={{ color: returnPercentage >= 0 ? 'success.main' : 'error.main' }}
-                      >
-                        {returnPercentage.toFixed(2)}%
-                      </TableCell>
-                      <TableCell align="center">
+                      <TableCell align="right">
                         <IconButton size="small" onClick={() => handleEdit(investment)}>
                           <Edit fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" onClick={() => openDeleteDialog(investment._id)}>
+                        <IconButton size="small" color="error" onClick={() => openDeleteDialog(investment._id)}>
                           <Delete fontSize="small" />
                         </IconButton>
                       </TableCell>
@@ -1409,8 +1601,8 @@ const Investments = () => {
               </TableBody>
             </Table>
           </TableContainer>
-        </Grid>
-      </Grid>
+        )}
+      </Paper>
     </Box>
   );
 

@@ -17,7 +17,7 @@ export const UPDATE_PROFILE_FAIL = 'UPDATE_PROFILE_FAIL';
 // Load User
 export const loadUser = () => async (dispatch) => {
   try {
-    const res = await api.get('/auth');
+    const res = await api.get('/api/auth');
     
     dispatch({
       type: USER_LOADED,
@@ -36,7 +36,7 @@ export const register = (formData) => async (dispatch) => {
   
   try {
     console.log('Register action: Attempting to register user:', formData.email);
-    const res = await api.post('/auth/register', formData);
+    const res = await api.post('/api/auth/register', formData);
     console.log('Register action: Server response:', res.data);
     
     dispatch({
@@ -69,7 +69,7 @@ export const login = (email, password) => async (dispatch) => {
   
   try {
     console.log('Login action: Attempting to login with email:', email);
-    const res = await api.post('/auth/login', { email, password });
+    const res = await api.post('/api/auth/login', { email, password });
     console.log('Login action: Server response:', res.data);
     
     dispatch({
@@ -105,7 +105,7 @@ export const updateProfile = (profileData) => async (dispatch) => {
   dispatch({ type: UPDATE_PROFILE_REQUEST });
   
   try {
-    const res = await api.put('/users/profile', profileData);
+    const res = await api.put('/api/users/profile', profileData);
     
     dispatch({
       type: UPDATE_PROFILE_SUCCESS,

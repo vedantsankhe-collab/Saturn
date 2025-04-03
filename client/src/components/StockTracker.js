@@ -31,7 +31,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import api from '../utils/api';
+
+// No API import needed for mock data
 
 ChartJS.register(
   CategoryScale,
@@ -43,7 +44,7 @@ ChartJS.register(
   Legend
 );
 
-const StockTracker = ({ onStockSelect }) => {
+const StockTracker = ({ onStockSelect, onAddInvestment }) => {
   const [stocks, setStocks] = useState([]);
   const [newStock, setNewStock] = useState('');
   const [loading, setLoading] = useState(false);
@@ -64,10 +65,15 @@ const StockTracker = ({ onStockSelect }) => {
 
   const fetchStocks = async () => {
     try {
-      const response = await api.get(`/indian-stocks`, {
-        params: { market }
-      });
-      setStocks(response.data);
+      // Using mock data since we don't have a real API endpoint
+      const mockStocks = [
+        { symbol: 'RELIANCE', companyName: 'Reliance Industries', price: 2490.75, change: 1.23, volume: 1250000 },
+        { symbol: 'TCS', companyName: 'Tata Consultancy Services', price: 3456.80, change: -0.45, volume: 856000 },
+        { symbol: 'HDFCBANK', companyName: 'HDFC Bank', price: 1678.50, change: 0.75, volume: 987000 },
+        { symbol: 'INFY', companyName: 'Infosys', price: 1234.90, change: -1.20, volume: 765000 },
+        { symbol: 'ICICIBANK', companyName: 'ICICI Bank', price: 890.25, change: 0.56, volume: 654000 }
+      ];
+      setStocks(mockStocks);
     } catch (error) {
       console.error('Error fetching stocks:', error);
     }
@@ -76,10 +82,22 @@ const StockTracker = ({ onStockSelect }) => {
   const fetchStockData = async (symbol) => {
     setLoading(true);
     try {
-      const response = await api.get(`/indian-stocks/${symbol}/data`, {
-        params: { timeframe }
-      });
-      setChartData(response.data);
+      // Create mock chart data since we don't have a real API endpoint
+      const mockLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+      const mockData = mockLabels.map(() => Math.floor(Math.random() * 1000) + 500);
+      
+      const chartData = {
+        labels: mockLabels,
+        datasets: [
+          {
+            label: `${symbol} Price`,
+            data: mockData,
+            borderColor: 'rgb(53, 162, 235)',
+            backgroundColor: 'rgba(53, 162, 235, 0.5)',
+          }
+        ]
+      };
+      setChartData(chartData);
     } catch (error) {
       console.error('Error fetching stock data:', error);
     } finally {
@@ -94,9 +112,10 @@ const StockTracker = ({ onStockSelect }) => {
       // Since there's no endpoint to add stocks, we'll mock it client-side
       const mockNewStock = {
         symbol: newStock.toUpperCase(),
+        companyName: newStock.toUpperCase(),
         price: Math.random() * 1000 + 500, // Random price between 500 and 1500
         change: (Math.random() * 5 - 2.5).toFixed(2), // Random change between -2.5% and 2.5%
-        market
+        volume: Math.floor(Math.random() * 1000000)
       };
       
       setStocks(prev => [...prev, mockNewStock]);
@@ -118,12 +137,14 @@ const StockTracker = ({ onStockSelect }) => {
     const formattedStock = {
       ...stock,
       symbol: stock.symbol,
-      companyName: stock.companyName || stock.symbol,
+      name: stock.companyName || stock.symbol,
       price: typeof stock.price === 'number' ? stock.price : parseFloat(stock.price)
     };
     
     setSelectedStock(formattedStock);
-    onStockSelect(formattedStock);
+    if (onStockSelect) {
+      onStockSelect(formattedStock);
+    }
   };
 
   const chartOptions = {

@@ -32,7 +32,7 @@ import {
   Tooltip
 } from '@mui/material';
 import { Add, Delete, Edit, Sort, AttachMoney, TrendingUp } from '@mui/icons-material';
-import api from '../utils/api';
+import { api } from '../utils/api';
 
 const Income = () => {
   const [incomeEntries, setIncomeEntries] = useState([]);
@@ -80,7 +80,9 @@ const Income = () => {
   const fetchIncome = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/income');
+      console.log('Fetching income data...');
+      const res = await api.get('/api/income');
+      console.log('Income data fetched:', res.data);
       setIncomeEntries(res.data);
       setError(null);
     } catch (err) {
@@ -93,9 +95,11 @@ const Income = () => {
 
   const fetchCategories = async () => {
     try {
-      const res = await api.get('/categories');
+      console.log('Fetching categories...');
+      const res = await api.get('/api/categories');
       // Filter to only income categories
       const incomeCategories = res.data.filter(cat => cat.type === 'income');
+      console.log('Income categories fetched:', incomeCategories);
       setCategories(incomeCategories);
     } catch (err) {
       console.error('Failed to fetch categories', err);
@@ -111,9 +115,11 @@ const Income = () => {
     
     try {
       if (editMode) {
-        await api.put(`/income/${currentId}`, formData);
+        console.log('Updating income entry:', currentId, formData);
+        await api.put(`/api/income/${currentId}`, formData);
       } else {
-        await api.post('/income', formData);
+        console.log('Creating new income entry:', formData);
+        await api.post('/api/income', formData);
       }
       
       resetForm();
@@ -150,7 +156,8 @@ const Income = () => {
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/income/${incomeToDelete}`);
+      console.log('Deleting income entry:', incomeToDelete);
+      await api.delete(`/api/income/${incomeToDelete}`);
       setIncomeEntries(incomeEntries.filter(income => income._id !== incomeToDelete));
       setDeleteDialogOpen(false);
       setIncomeToDelete(null);

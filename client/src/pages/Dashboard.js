@@ -22,7 +22,7 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon
 } from '@mui/icons-material';
-import api from '../utils/api';
+import { api } from '../utils/api';
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -38,13 +38,17 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        console.log('Fetching dashboard data...');
+        
         // Fetch income data
-        const incomeRes = await api.get('/income');
+        const incomeRes = await api.get('/api/income');
         const incomes = incomeRes.data;
+        console.log('Income data fetched:', incomes);
 
         // Fetch expense data
-        const expenseRes = await api.get('/expenses');
+        const expenseRes = await api.get('/api/expenses');
         const expenses = expenseRes.data;
+        console.log('Expense data fetched:', expenses);
 
         // Calculate totals
         const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
@@ -93,6 +97,8 @@ const Dashboard = () => {
           recentTransactions: allTransactions,
           upcomingBills: upcomingBills
         });
+        
+        console.log('Dashboard data processed successfully');
         setError(null);
       } catch (err) {
         setError('Failed to fetch dashboard data. Please try again.');

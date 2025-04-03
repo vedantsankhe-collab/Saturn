@@ -14,7 +14,7 @@ import {
   Avatar
 } from '@mui/material';
 import { Send as SendIcon, SmartToy as BotIcon } from '@mui/icons-material';
-import api from '../utils/api';
+import { api } from '../utils/api';
 
 const InvestmentChatbot = () => {
   const [messages, setMessages] = useState([]);

@@ -6,6 +6,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import store from './redux/store';
 import { greenBlackTheme } from './utils/theme';
 import { loadUser } from './redux/actions/authActions';
+import { AuthProvider } from './context/AuthContext';
 
 // Layout Components
 import Navbar from './components/layout/Navbar';
@@ -19,13 +20,11 @@ import Register from './pages/auth/Register';
 import Dashboard from './pages/Dashboard';
 import Expenses from './pages/Expenses';
 import Income from './pages/Income';
-import Investments from './pages/Investments';
+import Notifications from './pages/Notifications';
 import Categories from './pages/Categories';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
-
-// Placeholder for other pages
-const Notifications = () => <div>Notifications Page</div>;
+import Theme from './pages/Theme';
 
 const App = () => {
   // Load user on app load
@@ -41,53 +40,55 @@ const App = () => {
       <ThemeProvider theme={greenBlackTheme}>
         <CssBaseline />
         <Router>
-          <Navbar />
-          <Alert />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } />
-            <Route path="/expenses" element={
-              <PrivateRoute>
-                <Expenses />
-              </PrivateRoute>
-            } />
-            <Route path="/income" element={
-              <PrivateRoute>
-                <Income />
-              </PrivateRoute>
-            } />
-            <Route path="/investments" element={
-              <PrivateRoute>
-                <Investments />
-              </PrivateRoute>
-            } />
-            <Route path="/notifications" element={
-              <PrivateRoute>
-                <Notifications />
-              </PrivateRoute>
-            } />
-            <Route path="/categories" element={
-              <PrivateRoute>
-                <Categories />
-              </PrivateRoute>
-            } />
-            <Route path="/settings" element={
-              <PrivateRoute>
-                <Settings />
-              </PrivateRoute>
-            } />
-            <Route path="/profile" element={
-              <PrivateRoute>
-                <Profile />
-              </PrivateRoute>
-            } />
-          </Routes>
+          <AuthProvider>
+            <Navbar />
+            <Alert />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              } />
+              <Route path="/expenses" element={
+                <PrivateRoute>
+                  <Expenses />
+                </PrivateRoute>
+              } />
+              <Route path="/income" element={
+                <PrivateRoute>
+                  <Income />
+                </PrivateRoute>
+              } />
+              <Route path="/notifications" element={
+                <PrivateRoute>
+                  <Notifications />
+                </PrivateRoute>
+              } />
+              <Route path="/categories" element={
+                <PrivateRoute>
+                  <Categories />
+                </PrivateRoute>
+              } />
+              <Route path="/settings" element={
+                <PrivateRoute>
+                  <Settings />
+                </PrivateRoute>
+              } />
+              <Route path="/profile" element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              } />
+              <Route path="/theme" element={
+                <PrivateRoute>
+                  <Theme />
+                </PrivateRoute>
+              } />
+            </Routes>
+          </AuthProvider>
         </Router>
       </ThemeProvider>
     </Provider>
