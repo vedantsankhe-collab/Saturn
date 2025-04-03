@@ -109,7 +109,7 @@ export const updateProfile = (profileData) => async (dispatch) => {
   dispatch({ type: UPDATE_PROFILE_REQUEST });
   
   try {
-    const res = await api.put('/api/users/profile', profileData);
+    const res = await api.put('/api/auth/profile', profileData);
     
     dispatch({
       type: UPDATE_PROFILE_SUCCESS,
